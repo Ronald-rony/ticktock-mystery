@@ -36,7 +36,7 @@ jobs:
         run: |
           npm ci
           npm run build
-          npx cap copy android
+          npx cap sync android
 
       - name: Configure Release Signing Keystore
         env:
