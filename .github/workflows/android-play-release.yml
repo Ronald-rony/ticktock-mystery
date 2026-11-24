@@ -1,0 +1,77 @@
+name: Build Google Play Release (.aab & .apk)
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Set up Java 17 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Install Android SDK 35 components
+        run: |
+          yes | "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --licenses || true
+          "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Install dependencies & sync Android assets
+        run: |
+          npm ci
+          npm run build
+          npx cap copy android
+
+      - name: Configure Release Signing Keystore
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASS: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 --decode > android/app/ticktock-upload.jks
+            cat <<EOF > android/keystore.properties
+          storeFile=ticktock-upload.jks
+          storePassword=$KEYSTORE_PASS
+          keyAlias=$KEY_ALIAS
+          keyPassword=$KEY_PASS
+          EOF
+            echo "✅ Release upload keystore configured."
+          else
+            echo "⚠️ ANDROID_KEYSTORE_BASE64 secret not set yet — building unsigned release bundle for verification."
+          fi
+
+      - name: Build Android App Bundle (.aab) & Test APK
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew bundleRelease assembleRelease
+
+      - name: Upload Play Store Bundle (.aab)
+        uses: actions/upload-artifact@v4
+        with:
+          name: ticktock-mystery-play-store-aab
+          path: android/app/build/outputs/bundle/release/*.aab
+
+      - name: Upload Release APK (for phone testing)
+        uses: actions/upload-artifact@v4
+        with:
+          name: ticktock-mystery-android-apk
+          path: android/app/build/outputs/apk/release/*.apk

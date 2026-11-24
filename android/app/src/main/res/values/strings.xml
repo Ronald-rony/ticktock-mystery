@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">TickTock Mystery</string>
+    <string name="title_activity_main">TickTock Mystery</string>
+    <string name="package_name">com.ticktockmystery.app</string>
+    <string name="custom_url_scheme">com.ticktockmystery.app</string>
+</resources>

@@ -1,0 +1,17 @@
+node_modules
+dist
+.DS_Store
+*.log
+
+# Android signing secrets — NEVER commit!
+android/keystore.properties
+android/*.jks
+android/*.keystore
+android/app/*.jks
+android/app/*.keystore
+
+# Android build outputs
+android/.gradle
+android/build
+android/app/build
+android/local.properties
