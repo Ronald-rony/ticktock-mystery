@@ -24,14 +24,31 @@ jobs:
           node-version: 22
           cache: 'npm'
 
+      - name: Check Apple signing secrets
+        id: signing
+        env:
+          CERT_B64: ${{ secrets.APPLE_DIST_CERT_P12_BASE64 }}
+          API_P8: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8 }}
+        run: |
+          if [ -n "$CERT_B64" ]; then
+            echo "has_cert=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_cert=false" >> "$GITHUB_OUTPUT"
+          fi
+          if [ -n "$API_P8" ]; then
+            echo "has_asc_api=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_asc_api=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Install npm dependencies, build web bundle & sync iOS Pods
         run: |
           npm ci
           npm run build
           npx cap sync ios
 
-      - name: Verify iOS Build (Unsigned — runs even before Apple Developer secrets are added)
-        if: ${{ secrets.APPLE_DIST_CERT_P12_BASE64 == '' }}
+      - name: Verify Native iOS Xcode Build (Unsigned)
+        if: steps.signing.outputs.has_cert == 'false'
         working-directory: ios/App
         run: |
           xcodebuild \
@@ -43,7 +60,7 @@ jobs:
             build
 
       - name: Import Apple Signing Certificate & Provisioning Profile
-        if: ${{ secrets.APPLE_DIST_CERT_P12_BASE64 != '' }}
+        if: steps.signing.outputs.has_cert == 'true'
         env:
           CERT_B64: ${{ secrets.APPLE_DIST_CERT_P12_BASE64 }}
           CERT_PASS: ${{ secrets.APPLE_DIST_CERT_PASSWORD }}
@@ -63,7 +80,7 @@ jobs:
           echo "$PROFILE_B64" | base64 --decode > ~/Library/MobileDevice/Provisioning\ Profiles/ticktock.mobileprovision
 
       - name: Archive & Export Signed App Store IPA
-        if: ${{ secrets.APPLE_DIST_CERT_P12_BASE64 != '' }}
+        if: steps.signing.outputs.has_cert == 'true'
         env:
           TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           PROFILE_NAME: ${{ secrets.APPLE_PROVISIONING_PROFILE_NAME }}
@@ -105,14 +122,14 @@ jobs:
             -exportPath "$PWD/build/ipa"
 
       - name: Upload Signed IPA Artifact
-        if: ${{ secrets.APPLE_DIST_CERT_P12_BASE64 != '' }}
+        if: steps.signing.outputs.has_cert == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: ticktock-mystery-appstore-ipa
           path: ios/App/build/ipa/*.ipa
 
       - name: Upload directly to TestFlight / App Store Connect
-        if: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8 != '' && secrets.APPLE_DIST_CERT_P12_BASE64 != '' }}
+        if: steps.signing.outputs.has_cert == 'true' && steps.signing.outputs.has_asc_api == 'true'
         env:
           API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
           ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
