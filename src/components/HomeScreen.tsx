@@ -1,15 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import {
   Flame,
-  Music,
-  Palette,
   Play,
-  ShieldCheck,
+  Settings,
   Sparkles,
   Star,
   Trophy,
-  Volume2,
-  VolumeX,
   Zap,
 } from 'lucide-react';
 import { CLOCK_SKINS, DIFFICULTIES } from '../data/gameData';
@@ -30,9 +26,7 @@ interface HomeScreenProps {
   onChangePlayMode: (mode: PlayMode) => void;
   onStartGame: (difficulty: DifficultyId) => void;
   onOpenTrophies: (tab: 'badges' | 'skins') => void;
-  onOpenParents: () => void;
-  onToggleSound: () => void;
-  onToggleMusic: () => void;
+  onOpenSettings: () => void;
 }
 
 const DEMO_TIMES: ClockTime[] = [
@@ -48,9 +42,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   onChangePlayMode,
   onStartGame,
   onOpenTrophies,
-  onOpenParents,
-  onToggleSound,
-  onToggleMusic,
+  onOpenSettings,
 }) => {
   const [demoIdx, setDemoIdx] = useState(0);
   const activeSkin =
@@ -66,90 +58,56 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
   return (
     <div className="safe-top safe-bottom mx-auto flex min-h-full w-full max-w-2xl flex-col px-4 pb-6 pt-3">
-      {/* Top Status & Controls Bar */}
+      {/* Clean, Uncluttered Top Bar: Combined Stats Pill + Trophy + Settings */}
       <header className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => {
-              soundEngine.playButtonPop();
-              onOpenTrophies('badges');
-            }}
-            className="toy-btn toy-btn-white flex items-center gap-1.5 rounded-2xl px-3 py-1.5 text-sm font-black text-amber-600"
-            aria-label={`Total stars: ${progress.totalStars}`}
-          >
+        <button
+          type="button"
+          onClick={() => {
+            soundEngine.playButtonPop();
+            onOpenTrophies('badges');
+          }}
+          className="toy-btn toy-btn-white flex items-center gap-2.5 rounded-2xl px-3.5 py-2 text-sm font-black"
+          aria-label={`Total stars: ${progress.totalStars}, best streak: ${progress.bestStreak}`}
+        >
+          <span className="flex items-center gap-1 text-amber-600">
             <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
             <span className="tabular-nums">{progress.totalStars}</span>
-          </button>
-
+          </span>
           {progress.bestStreak > 0 && (
-            <div className="flex items-center gap-1 rounded-2xl border-2 border-orange-200 bg-white/90 px-2.5 py-1.5 text-sm font-black text-orange-600 shadow-sm">
-              <Flame className="h-4 w-4 fill-orange-500 text-orange-500" />
-              <span className="tabular-nums">{progress.bestStreak}</span>
-            </div>
+            <>
+              <span className="h-3.5 w-[2px] rounded-full bg-slate-200" />
+              <span className="flex items-center gap-1 text-orange-500">
+                <Flame className="h-4 w-4 fill-orange-500 text-orange-500" />
+                <span className="tabular-nums">{progress.bestStreak}</span>
+              </span>
+            </>
           )}
-        </div>
+        </button>
 
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => {
-              soundEngine.playButtonPop();
-              onOpenTrophies('skins');
-            }}
-            aria-label="Clock Skins"
-            className="toy-btn toy-btn-white flex h-10 w-10 items-center justify-center rounded-2xl text-pink-500"
-          >
-            <Palette className="h-5 w-5" />
-          </button>
+        <div className="flex items-center gap-2.5">
           <button
             type="button"
             onClick={() => {
               soundEngine.playButtonPop();
               onOpenTrophies('badges');
             }}
-            aria-label="Trophy Room"
-            className="toy-btn toy-btn-sunny flex h-10 w-10 items-center justify-center rounded-2xl text-amber-950"
+            aria-label="Trophies and Clock Skins"
+            className="toy-btn toy-btn-sunny flex h-10 items-center gap-1.5 rounded-2xl px-3.5 text-sm font-black text-amber-950"
           >
-            <Trophy className="h-5 w-5" />
+            <Trophy className="h-4 w-4" />
+            <span>Rewards</span>
           </button>
-          <button
-            type="button"
-            onClick={onToggleMusic}
-            aria-label={progress.musicEnabled ? 'Mute kids music' : 'Play kids music'}
-            title={progress.musicEnabled ? 'Music On' : 'Music Off'}
-            className={`toy-btn toy-btn-white relative flex h-10 w-10 items-center justify-center rounded-2xl ${
-              progress.musicEnabled ? 'text-purple-500' : 'text-slate-400'
-            }`}
-          >
-            <Music className="h-5 w-5" />
-            {!progress.musicEnabled && (
-              <span className="pointer-events-none absolute h-0.5 w-6 rotate-45 rounded-full bg-rose-400" />
-            )}
-          </button>
-          <button
-            type="button"
-            onClick={onToggleSound}
-            aria-label={progress.soundEnabled ? 'Mute sound effects' : 'Unmute sound effects'}
-            title={progress.soundEnabled ? 'Sound Effects On' : 'Sound Effects Off'}
-            className="toy-btn toy-btn-white flex h-10 w-10 items-center justify-center rounded-2xl text-sky-600"
-          >
-            {progress.soundEnabled ? (
-              <Volume2 className="h-5 w-5" />
-            ) : (
-              <VolumeX className="h-5 w-5 text-slate-400" />
-            )}
-          </button>
+
           <button
             type="button"
             onClick={() => {
               soundEngine.playButtonPop();
-              onOpenParents();
+              onOpenSettings();
             }}
-            aria-label="Parents & Privacy Info"
-            className="toy-btn toy-btn-white flex h-10 w-10 items-center justify-center rounded-2xl text-emerald-600"
+            aria-label="Settings, Music, Sound & Parents"
+            className="toy-btn toy-btn-white flex h-10 w-10 items-center justify-center rounded-2xl text-slate-600"
           >
-            <ShieldCheck className="h-5 w-5" />
+            <Settings className="h-5 w-5" />
           </button>
         </div>
       </header>

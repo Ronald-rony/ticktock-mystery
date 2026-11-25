@@ -5,13 +5,11 @@ import {
   Check,
   Flame,
   Lightbulb,
-  Music,
+  Settings,
   Sparkles,
   Star,
   Timer,
   Trophy,
-  Volume2,
-  VolumeX,
 } from 'lucide-react';
 import {
   BADGES,
@@ -45,8 +43,7 @@ interface GameScreenProps {
   playMode: PlayMode;
   progress: PlayerProgress;
   onExit: () => void;
-  onToggleSound: () => void;
-  onToggleMusic: () => void;
+  onOpenSettings: () => void;
   onRoundComplete: (
     result: Omit<RoundResult, 'newBadges' | 'newSkins'>,
     dashCompletedStars?: number
@@ -61,8 +58,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({
   playMode,
   progress,
   onExit,
-  onToggleSound,
-  onToggleMusic,
+  onOpenSettings,
   onRoundComplete,
   onDashFinished,
 }) => {
@@ -289,18 +285,22 @@ export const GameScreen: React.FC<GameScreenProps> = ({
           )}
         </div>
 
-        {/* Right HUD: Streak, Stars, Timer, Mute */}
+        {/* Right HUD: Compact Stars+Streak Pill, Timer (tablet+), and Single Settings Button */}
         <div className="flex items-center gap-1.5">
-          {progress.currentStreak > 0 && (
-            <div className="flex items-center gap-0.5 rounded-2xl bg-orange-100 px-2 py-1 text-xs font-black text-orange-600">
-              <Flame className="h-3.5 w-3.5 fill-orange-500 text-orange-500" />
-              <span className="tabular-nums">{progress.currentStreak}</span>
-            </div>
-          )}
-
-          <div className="flex items-center gap-1 rounded-2xl bg-amber-100 px-2 py-1 text-xs font-black text-amber-700">
-            <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
-            <span className="tabular-nums">{progress.totalStars}</span>
+          <div className="flex items-center gap-1.5 rounded-2xl border-2 border-amber-100 bg-white/95 px-2.5 py-1.5 text-xs font-black shadow-sm">
+            <span className="flex items-center gap-0.5 text-amber-600">
+              <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
+              <span className="tabular-nums">{progress.totalStars}</span>
+            </span>
+            {progress.currentStreak > 0 && (
+              <>
+                <span className="h-3 w-[1.5px] rounded-full bg-slate-200" />
+                <span className="flex items-center gap-0.5 text-orange-500">
+                  <Flame className="h-3.5 w-3.5 fill-orange-500 text-orange-500" />
+                  <span className="tabular-nums">{progress.currentStreak}</span>
+                </span>
+              </>
+            )}
           </div>
 
           <div className="hidden items-center gap-1 rounded-2xl bg-white/85 px-2 py-1 text-xs font-black tabular-nums text-slate-500 sm:flex">
@@ -310,30 +310,14 @@ export const GameScreen: React.FC<GameScreenProps> = ({
 
           <button
             type="button"
-            onClick={onToggleMusic}
-            aria-label={progress.musicEnabled ? 'Mute kids music' : 'Play kids music'}
-            title={progress.musicEnabled ? 'Music On' : 'Music Off'}
-            className={`toy-btn toy-btn-white relative flex h-10 w-10 items-center justify-center rounded-2xl ${
-              progress.musicEnabled ? 'text-purple-500' : 'text-slate-400'
-            }`}
+            onClick={() => {
+              soundEngine.playButtonPop();
+              onOpenSettings();
+            }}
+            aria-label="Audio Settings"
+            className="toy-btn toy-btn-white flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl text-slate-600"
           >
-            <Music className="h-4 w-4" />
-            {!progress.musicEnabled && (
-              <span className="pointer-events-none absolute h-0.5 w-5 rotate-45 rounded-full bg-rose-400" />
-            )}
-          </button>
-
-          <button
-            type="button"
-            onClick={onToggleSound}
-            aria-label={progress.soundEnabled ? 'Mute sound effects' : 'Unmute sound effects'}
-            className="toy-btn toy-btn-white flex h-10 w-10 items-center justify-center rounded-2xl text-sky-600"
-          >
-            {progress.soundEnabled ? (
-              <Volume2 className="h-4 w-4" />
-            ) : (
-              <VolumeX className="h-4 w-4 text-slate-400" />
-            )}
+            <Settings className="h-4 w-4" />
           </button>
         </div>
       </header>

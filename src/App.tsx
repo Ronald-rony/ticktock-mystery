@@ -25,6 +25,7 @@ import { GameScreen } from './components/GameScreen';
 import { TrophyModal } from './components/TrophyModal';
 import { DashSummaryModal } from './components/DashSummaryModal';
 import { ParentsGateModal } from './components/ParentsGateModal';
+import { QuickSettingsModal } from './components/QuickSettingsModal';
 
 export default function App() {
   const [progress, setProgress] = useState<PlayerProgress>(DEFAULT_PROGRESS);
@@ -39,6 +40,7 @@ export default function App() {
     null
   );
   const [parentsOpen, setParentsOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [dashSummary, setDashSummary] = useState<RoundResult[] | null>(null);
 
   const [confettiKey, setConfettiKey] = useState(0);
@@ -122,6 +124,8 @@ export default function App() {
     CapApp.addListener('backButton', () => {
       if (parentsOpen) {
         setParentsOpen(false);
+      } else if (settingsOpen) {
+        setSettingsOpen(false);
       } else if (trophyModalTab) {
         setTrophyModalTab(null);
       } else if (dashSummary) {
@@ -141,7 +145,7 @@ export default function App() {
     return () => {
       if (backHandle) backHandle.remove().catch(() => {});
     };
-  }, [parentsOpen, trophyModalTab, dashSummary, screen]);
+  }, [parentsOpen, settingsOpen, trophyModalTab, dashSummary, screen]);
 
   const triggerConfetti = (intensity: 'big' | 'medium' | 'small' = 'big') => {
     setConfettiIntensity(intensity);
@@ -263,9 +267,7 @@ export default function App() {
           onChangePlayMode={setPlayMode}
           onStartGame={handleStartGame}
           onOpenTrophies={(tab) => setTrophyModalTab(tab)}
-          onOpenParents={() => setParentsOpen(true)}
-          onToggleSound={handleToggleSound}
-          onToggleMusic={handleToggleMusic}
+          onOpenSettings={() => setSettingsOpen(true)}
         />
       ) : (
         <GameScreen
@@ -277,10 +279,22 @@ export default function App() {
             setDashSummary(null);
             setScreen('home');
           }}
-          onToggleSound={handleToggleSound}
-          onToggleMusic={handleToggleMusic}
+          onOpenSettings={() => setSettingsOpen(true)}
           onRoundComplete={handleRoundComplete}
           onDashFinished={handleDashFinished}
+        />
+      )}
+
+      {settingsOpen && (
+        <QuickSettingsModal
+          musicEnabled={progress.musicEnabled}
+          soundEnabled={progress.soundEnabled}
+          showHomeShortcuts={screen === 'home'}
+          onToggleMusic={handleToggleMusic}
+          onToggleSound={handleToggleSound}
+          onOpenSkins={() => setTrophyModalTab('skins')}
+          onOpenParents={() => setParentsOpen(true)}
+          onClose={() => setSettingsOpen(false)}
         />
       )}
 
