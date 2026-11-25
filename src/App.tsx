@@ -56,6 +56,9 @@ export default function App() {
       musicEngine.setEnabled(data.musicEnabled);
       haptics.setEnabled(data.hapticsEnabled);
       setLoaded(true);
+      if (Capacitor.isNativePlatform() && data.musicEnabled) {
+        musicEngine.unlockAndStart();
+      }
     });
 
     if (Capacitor.isNativePlatform()) {
@@ -69,17 +72,21 @@ export default function App() {
     };
   }, []);
 
-  // Unlock kids background music cleanly on first user interaction
+  // Unlock kids background music cleanly on first user interaction (click, touchend, pointerdown, keydown)
   useEffect(() => {
     if (!loaded) return;
-    const handleFirstGesture = () => {
+    const handleGesture = () => {
       musicEngine.unlockAndStart();
     };
-    window.addEventListener('pointerdown', handleFirstGesture, { passive: true });
-    window.addEventListener('keydown', handleFirstGesture, { passive: true });
+    window.addEventListener('click', handleGesture, { passive: true });
+    window.addEventListener('touchend', handleGesture, { passive: true });
+    window.addEventListener('pointerdown', handleGesture, { passive: true });
+    window.addEventListener('keydown', handleGesture, { passive: true });
     return () => {
-      window.removeEventListener('pointerdown', handleFirstGesture);
-      window.removeEventListener('keydown', handleFirstGesture);
+      window.removeEventListener('click', handleGesture);
+      window.removeEventListener('touchend', handleGesture);
+      window.removeEventListener('pointerdown', handleGesture);
+      window.removeEventListener('keydown', handleGesture);
     };
   }, [loaded]);
 

@@ -234,7 +234,14 @@ export const MysteryClock: React.FC<MysteryClockProps> = ({
               <stop offset="82%" stopColor="#000000" stopOpacity="0" />
               <stop offset="100%" stopColor="#000000" stopOpacity="0.09" />
             </radialGradient>
-            <filter id="handShadow" x="-30%" y="-30%" width="160%" height="160%">
+            <filter
+              id={`handShadow-${skin.id}`}
+              filterUnits="userSpaceOnUse"
+              x="0"
+              y="0"
+              width="320"
+              height="320"
+            >
               <feDropShadow dx="0" dy="3" stdDeviation="2.5" floodColor="#1E293B" floodOpacity="0.22" />
             </filter>
           </defs>
@@ -517,7 +524,7 @@ export const MysteryClock: React.FC<MysteryClockProps> = ({
           )}
 
           {/* REAL CLOCK HANDS — Chunky, Glossy, Spring-Animated! */}
-          <g filter="url(#handShadow)">
+          <g filter={`url(#handShadow-${skin.id})`}>
             {/* HOUR HAND — Coral Red, short & chubby */}
             <g transform={`rotate(${angles.hour} ${cx} ${cy})`}>
               <line

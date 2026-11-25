@@ -4,7 +4,6 @@
  * Zero external audio assets, 100% offline, safe for commercial Apple App Store & Google Play Store release.
  */
 
-// Note frequencies (Hz)
 const N: Record<string, number> = {
   G2: 98.0,
   A2: 110.0,
@@ -54,22 +53,14 @@ const MELODY: Array<string | null> = [
 
 // Cozy warm bassline (64 steps)
 const BASS: Array<string | null> = [
-  // Bar 1 (C)
   'C3', null, null, null, 'G3', null, null, null,
-  // Bar 2 (G)
   'G2', null, null, null, 'D3', null, null, null,
-  // Bar 3 (Am)
   'A2', null, null, null, 'E3', null, null, null,
-  // Bar 4 (F -> G)
   'F3', null, null, null, 'G3', null, null, null,
 
-  // Bar 5 (C)
   'C3', null, null, null, 'G3', null, null, null,
-  // Bar 6 (F)
   'F3', null, null, null, 'C3', null, null, null,
-  // Bar 7 (Dm -> G)
   'D3', null, null, null, 'G2', null, 'B2', null,
-  // Bar 8 (C)
   'C3', null, null, null, 'G2', null, null, null,
 ];
 
@@ -95,13 +86,14 @@ class KidsMusicEngine {
 
   private enabled = true;
   private suspended = false;
+  private hasUserGesture = false;
   private isPlaying = false;
   private stepIndex = 0;
   private nextNoteTime = 0;
   private schedulerId: number | null = null;
   private duckTimeoutId: number | null = null;
 
-  private readonly baseVolume = 0.22;
+  private readonly baseVolume = 0.34;
 
   private ensureContext(): AudioContext | null {
     if (typeof window === 'undefined') return null;
@@ -115,7 +107,7 @@ class KidsMusicEngine {
       this.ctx = new AudioCtx();
       this.filter = this.ctx.createBiquadFilter();
       this.filter.type = 'lowpass';
-      this.filter.frequency.value = 2600;
+      this.filter.frequency.value = 2800;
       this.filter.Q.value = 0.7;
 
       this.masterGain = this.ctx.createGain();
@@ -127,12 +119,16 @@ class KidsMusicEngine {
     return this.ctx;
   }
 
+  /** Set preference without prematurely creating an AudioContext before a user gesture */
   public setEnabled(enabled: boolean) {
     this.enabled = enabled;
     if (!enabled) {
       this.stopLoop();
-    } else if (!this.suspended) {
-      this.startLoop();
+      if (this.ctx && this.ctx.state === 'running') {
+        this.ctx.suspend().catch(() => {});
+      }
+    } else if (this.hasUserGesture && !this.suspended) {
+      this.unlockAndStart();
     }
   }
 
@@ -140,16 +136,32 @@ class KidsMusicEngine {
     return this.enabled;
   }
 
-  /** Call on first user interaction to satisfy iOS/Android/Web autoplay rules */
+  /** Call on user gestures (click / touchend / pointerdown / keydown) to unlock Web Audio reliably on Android WebView, iOS Safari & Desktop */
   public unlockAndStart() {
+    this.hasUserGesture = true;
     if (!this.enabled || this.suspended) return;
+
     const ctx = this.ensureContext();
     if (!ctx) return;
-    if (ctx.state === 'suspended') {
-      ctx.resume().catch(() => {});
-    }
-    if (!this.isPlaying) {
-      this.startLoop();
+
+    const begin = () => {
+      if (!this.enabled || this.suspended) return;
+      if (ctx.state === 'running') {
+        if (!this.isPlaying) {
+          this.startLoop();
+        } else if (this.nextNoteTime < ctx.currentTime) {
+          this.nextNoteTime = ctx.currentTime + 0.05;
+        }
+      }
+    };
+
+    if (ctx.state !== 'running') {
+      ctx
+        .resume()
+        .then(begin)
+        .catch(() => {});
+    } else {
+      begin();
     }
   }
 
@@ -161,11 +173,8 @@ class KidsMusicEngine {
       if (this.ctx && this.ctx.state === 'running') {
         this.ctx.suspend().catch(() => {});
       }
-    } else if (this.enabled) {
-      if (this.ctx && this.ctx.state === 'suspended') {
-        this.ctx.resume().catch(() => {});
-      }
-      this.startLoop();
+    } else if (this.enabled && this.hasUserGesture) {
+      this.unlockAndStart();
     }
   }
 
@@ -174,7 +183,7 @@ class KidsMusicEngine {
     if (!this.ctx || !this.masterGain || !this.isPlaying) return;
     const now = this.ctx.currentTime;
     this.masterGain.gain.cancelScheduledValues(now);
-    this.masterGain.gain.setTargetAtTime(this.baseVolume * 0.32, now, 0.05);
+    this.masterGain.gain.setTargetAtTime(this.baseVolume * 0.35, now, 0.05);
 
     if (this.duckTimeoutId) window.clearTimeout(this.duckTimeoutId);
     this.duckTimeoutId = window.setTimeout(() => {
@@ -186,24 +195,24 @@ class KidsMusicEngine {
 
   private startLoop() {
     if (this.isPlaying || !this.enabled || this.suspended) return;
-    const ctx = this.ensureContext();
-    if (!ctx) return;
-
-    if (ctx.state === 'suspended') {
-      ctx.resume().catch(() => {});
-    }
+    const ctx = this.ctx;
+    if (!ctx || ctx.state !== 'running') return;
 
     this.isPlaying = true;
-    this.nextNoteTime = ctx.currentTime + 0.08;
+    this.nextNoteTime = ctx.currentTime + 0.06;
 
-    const scheduleAhead = 0.18;
+    const scheduleAhead = 0.2;
     const tick = () => {
       if (!this.isPlaying || !this.ctx) return;
       if (this.ctx.state !== 'running') return;
 
+      // Guard against long tab pauses causing a burst of catch-up notes
+      if (this.nextNoteTime < this.ctx.currentTime - 0.5) {
+        this.nextNoteTime = this.ctx.currentTime + 0.05;
+      }
+
       while (this.nextNoteTime < this.ctx.currentTime + scheduleAhead) {
         this.scheduleStep(this.stepIndex, this.nextNoteTime);
-        // Subtle playful swing on odd eighth notes
         const swingOffset = this.stepIndex % 2 === 0 ? 1.07 : 0.93;
         this.nextNoteTime += STEP_DURATION_SEC * swingOffset;
         this.stepIndex = (this.stepIndex + 1) % MELODY.length;
@@ -227,28 +236,24 @@ class KidsMusicEngine {
     const dest = this.filter;
     if (!ctx || !dest) return;
 
-    // 1. Toy Marimba Melody
     const melNote = MELODY[step];
     if (melNote && N[melNote]) {
-      this.playMarimba(ctx, dest, N[melNote], time, 0.25, 0.26);
+      this.playMarimba(ctx, dest, N[melNote], time, 0.26, 0.28);
     }
 
-    // 2. Cozy Pluck Bass
     const bassNote = BASS[step];
     if (bassNote && N[bassNote]) {
-      this.playBass(ctx, dest, N[bassNote], time, 0.36, 0.24);
+      this.playBass(ctx, dest, N[bassNote], time, 0.36, 0.26);
     }
 
-    // 3. Soft Celesta Sparkle
     const spNote = SPARKLE[step];
     if (spNote && N[spNote]) {
-      this.playSparkle(ctx, dest, N[spNote], time, 0.34, 0.08);
+      this.playSparkle(ctx, dest, N[spNote], time, 0.34, 0.09);
     }
 
-    // 4. Gentle "Tick-Tock" Woodblock Pulse on quarter beats!
     if (step % 2 === 0) {
       const isTick = step % 4 === 0;
-      this.playWoodblock(ctx, dest, isTick ? 920 : 740, time, isTick ? 0.055 : 0.042);
+      this.playWoodblock(ctx, dest, isTick ? 920 : 740, time, isTick ? 0.06 : 0.045);
     }
   }
 
